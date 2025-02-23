@@ -3,7 +3,7 @@ window.addEventListener("DOMContentLoaded", function(){
     const canvas = document.getElementById("asteroids");
     const ctx = canvas.getContext("2d");
 
-    document.addEventListener('resize', function() {
+    window.addEventListener('resize', function() {
         canvas.height = window.innerHeight;
         canvas.width = window.innerWidth;
     }, false);
@@ -33,7 +33,7 @@ window.addEventListener("DOMContentLoaded", function(){
             ctx.strokeStyle = "#0E273CBF";
             ctx.fillStyle = "#0E273C40";
             ctx.beginPath();
-            // Calculate the rotated position of the first vertex
+            
             let rotatedX = this.vertices[0].x * Math.cos(this.rotationAngle) - this.vertices[0].y * Math.sin(this.rotationAngle) + this.x;
             let rotatedY = this.vertices[0].x * Math.sin(this.rotationAngle) + this.vertices[0].y * Math.cos(this.rotationAngle) + this.y;
             ctx.moveTo(rotatedX, rotatedY);
@@ -43,7 +43,7 @@ window.addEventListener("DOMContentLoaded", function(){
             this.minX = rotatedX;
             this.minY = rotatedY;
             
-            // Calculate the rotated positions of the remaining vertices
+            
             for (let i = 1; i < this.vertices.length; i++) {
                 rotatedX = this.vertices[i].x * Math.cos(this.rotationAngle) - this.vertices[i].y * Math.sin(this.rotationAngle) + this.x;
                 rotatedY = this.vertices[i].x * Math.sin(this.rotationAngle) + this.vertices[i].y * Math.cos(this.rotationAngle) + this.y;
@@ -166,6 +166,64 @@ window.addEventListener("DOMContentLoaded", function(){
         }
     }
 
+    class Star {
+        constructor(x, y, size, lifespan, speedX, speedY){
+            this.x = x;
+            this.y = y;
+            this.size = size;
+            this.maxLifespan = lifespan;
+            this.lifespan = lifespan;
+            this.speedX = speedX;
+            this.speedY = speedY;
+            this.lastUpdate = performance.now();
+        }
+
+        lifespanToAlpha(){
+
+            const middleLifespan = this.maxLifespan/2;
+            let fade = 0;
+
+            if(this.lifespan < middleLifespan){
+                fade = this.lifespan / middleLifespan;
+            }else{
+                fade = (this.maxLifespan - this.lifespan)/ middleLifespan;
+            }
+
+            let alpha = Math.max(0, fade * 255);
+            return Math.round(alpha).toString(16).toUpperCase().padStart(2, '0');
+        }
+
+        draw(){
+            ctx.strokeStyle = "#ffffff" + this.lifespanToAlpha();
+            ctx.fillStyle = "#ffffff" + this.lifespanToAlpha();
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, 2*Math.PI);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.fill();
+        }
+
+        update(){
+
+            var now = performance.now();
+            var deltaTime = now - this.lastUpdate;
+            this.lastUpdate = now;
+
+            this.x += this.speedX;
+            this.y += this.speedY;
+
+            this.lifespan -= deltaTime/1000;
+
+            if(this.lifespan < 0){
+                this.deleteStar();
+            }
+        }
+
+        deleteStar(){
+            stars.splice(stars.indexOf(this), 1);
+        }
+    }
+
     function generateVertices(numSides, radius) {
         const vertices = [];
         for (let i = 0; i < numSides; i++) {
@@ -180,7 +238,7 @@ window.addEventListener("DOMContentLoaded", function(){
     function generateAsteroids(num) {
         const asteroids = [];
         for (let i = 0; i < num; i++) {
-            const radius = 20 + Math.random() * 30;
+            const radius = 25 + Math.random() * 40;
             let x = Math.random() * canvas.width;
             let y = Math.random() * canvas.height;
 
@@ -204,23 +262,52 @@ window.addEventListener("DOMContentLoaded", function(){
             }
             
 
-            const speedX = (Math.random() - 0.5) * 3;
-            const speedY = (Math.random() - 0.5) * 3;
+            const speedX = (Math.random() - 0.5) * (Math.random()*2+3);
+            const speedY = (Math.random() - 0.5) * (Math.random()*2+3);
             asteroids.push(new Asteroid(x, y, radius, speedX, speedY));
         }
         return asteroids;
     }
 
+    function generateStar(){
+        
+        const size = (Math.random()*2+1);
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+
+        const speedX = (Math.random() - 0.5) * (Math.random()*0.5);
+        const speedY = (Math.random() - 0.5) * (Math.random()*0.5);
+        
+        const lifespan = Math.random()*20+10;
+
+        return new Star(x, y, size, lifespan, speedX, speedY);
+
+        
+    }
+
     let asteroids = generateAsteroids(15);
+    const stars = [];
+    const numStars = 20;
 
     function render() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        
+        stars.forEach(star =>{
+            star.update();
+            star.draw();
+        });
 
         asteroids.forEach(asteroid => {
             asteroid.update();
             asteroid.draw();
             asteroid.checkCollision();
         });
+
+        while(stars.length < numStars){
+            stars.push(generateStar());
+        }
+
 
         requestAnimationFrame(render);
     }
